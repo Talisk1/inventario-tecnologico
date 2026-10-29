@@ -37,12 +37,31 @@ async function ver(e) {
   try { seleccionado.value = await api.obtener(e.id); vista.value = 'detalle' }
   catch (err) { error.value = err.mensajes.join(' ') }
 }
-async function eliminar(e) {
-  if (!confirm(`¿Eliminar el equipo "${e.nombre}"? Esta acción no se puede deshacer.`)) return
-  try { await api.eliminar(e.id); await cargar() }
-  catch (err) { error.value = err.mensajes.join(' ') }
+const aEliminar = ref(null) // equipo pendiente de confirmación (modal)
+const toast = ref(null)
+let toastTimer
+
+function mostrarToast(texto, tipo = 'ok') {
+  toast.value = { texto, tipo }
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = null), 3000)
 }
-async function guardado() { vista.value = 'lista'; await cargar() }
+
+function eliminar(e) { aEliminar.value = e }
+async function confirmarEliminar() {
+  const e = aEliminar.value
+  aEliminar.value = null
+  try {
+    await api.eliminar(e.id)
+    await cargar()
+    mostrarToast(`Equipo "${e.nombre}" eliminado`, 'peligro')
+  } catch (err) { error.value = err.mensajes.join(' ') }
+}
+async function guardado(accion) {
+  vista.value = 'lista'
+  await cargar()
+  mostrarToast(accion === 'editado' ? 'Equipo editado correctamente' : 'Equipo guardado correctamente')
+}
 
 onMounted(cargar)
 </script>
@@ -89,5 +108,18 @@ onMounted(cargar)
         </tbody>
       </table>
     </template>
+
+    <div v-if="aEliminar" class="overlay" @click.self="aEliminar = null">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2>Eliminar equipo</h2>
+        <p>¿Seguro que desea eliminar <strong>{{ aEliminar.nombre }}</strong> ({{ aEliminar.codigoInventario }})? Esta acción no se puede deshacer.</p>
+        <div class="acciones">
+          <button class="peligro" @click="confirmarEliminar">Sí, eliminar</button>
+          <button class="sec" @click="aEliminar = null">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="toast" class="toast" :class="toast.tipo" role="status">{{ toast.texto }}</div>
   </main>
 </template>

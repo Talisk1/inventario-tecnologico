@@ -20,7 +20,7 @@ async function guardar() {
   try {
     if (props.equipo) await api.actualizar(props.equipo.id, datos)
     else await api.crear(datos)
-    emit('guardado')
+    emit('guardado', props.equipo ? 'editado' : 'creado')
   } catch (e) {
     errores.value = e.mensajes
   } finally {
